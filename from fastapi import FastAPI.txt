@@ -1,0 +1,39 @@
+from fastapi import FastAPI
+import random
+from fastapi.responses import JSONResponse
+
+app = FastAPI()
+
+# ✅ 1️⃣ 기본 라우트 (홈)
+@app.get("/")
+def read_root():
+    return JSONResponse(content={"message": "로또 번호 추천 API에 오신 것을 환영합니다!"}, ensure_ascii=False)
+
+# ✅ 2️⃣ 랜덤 로또 번호 추천
+@app.get("/lotto")
+def get_lotto_numbers():
+    numbers = random.sample(range(1, 46), 6)  # 1~45 중 6개 랜덤 선택
+    numbers.sort()  # 오름차순 정렬
+    return JSONResponse(content={"lotto_numbers": numbers}, ensure_ascii=False)
+
+# ✅ 3️⃣ 머신러닝 기반 예측
+@app.get("/predict")
+def predict_lotto_numbers():
+    # 📌 1. 과거 로또 데이터 로드
+    df = pd.read_csv("로또당첨번호.csv")  # 로또 데이터 파일 필요
+
+    # 📌 2. 필요한 데이터 전처리
+    df = df[["번호1", "번호2", "번호3", "번호4", "번호5", "번호6"]]  # 당첨번호만 선택
+    X = df.shift(1).dropna()  # 이전 회차 데이터 사용
+    y = df.drop(df.index[0])  # 현재 회차 당첨번호
+
+    # 📌 3. 머신러닝 모델 학습
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = XGBClassifier()
+    model.fit(X_train, y_train)
+
+    # 📌 4. 예측할 새로운 입력 데이터 생성
+    latest_numbers = df.iloc[-1].values.reshape(1, -1)
+    predicted = model.predict(latest_numbers)[0]
+
+    return {"predicted_lotto_numbers": list(predicted)}
